@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+echo "---> Golang buildpack"
+
+set -eo pipefail
+set -x
+
+env_dir="$2/env"
+layers_dir="$1"
+plan_path="$3"
+
+git_version="2.10.1"
+git_url="https://github.com/git/git/archive/v${git_version}.tar.gz"
+
+golang_version=1.11.4
+golang_url="https://golang.org/dl/go${golang_version}.linux-amd64.tar.gz"
+
+# Load user-provided build-time environment variables
+if compgen -G "$env_dir/*" > /dev/null; then
+  for var in "$env_dir"/*; do
+    declare "$(basename "$var")=$(<"$var")"
+  done
+fi
+
+echo "---> Installing git"
+
+if [[ -f $layers_dir/git.toml ]]; then
+  cached_git_url=$(cat "$layers_dir/git.toml" | yj -t | jq -r .metadata.url 2>/dev/null || echo 'Golang TOML parsing failed')
+fi
+if [[ $git_url != $cache_git_url ]] ; then
+  rm -rf "$layers_dir/git"
+  mkdir -p "$layers_dir/git"
+  wget -qO git.tgz "$git_url";
+  tar -C "$layers_dir/git" -xzf git.tgz
+  pushd "${layers_dir}/git/git-${git_version}"
+    make configure
+    ./configure --prefix "${layers_dir}/git"
+    make all
+    make install
+  popd
+  rm git.tgz
+  ls -la $layers_dir/git
+  echo "launch = false" > "$layers_dir"/git.toml
+  echo "build = true" >> "$layers_dir"/git.toml
+  echo "cache = true" >> "$layers_dir"/git.toml
+  echo -e "[metadata]\n  version = \"$git_version\"\n  url = \"$git_url\"" >> "$layers_dir"/git.toml
+fi
+
+export PATH=$layers_dir/git/git/bin:$PATH
+
+echo "---> Installing golang"
+
+if [[ -f $layers_dir/golang.toml ]]; then
+  cached_golang_url=$(cat "$layers_dir/golang.toml" | yj -t | jq -r .metadata.url 2>/dev/null || echo 'Golang TOML parsing failed')
+fi
+if [[ $golang_url != $cache_golang_url ]] ; then
+  rm -rf "$layers_dir/golang"
+  mkdir -p "$layers_dir/golang/gopath"
+  wget -qO go.tgz "$golang_url";
+  tar -C "$layers_dir/golang" -xzf go.tgz
+  rm go.tgz
+  ls -la $layers_dir/golang/go/bin/
+  "$layers_dir"/golang/go/bin/go version
+  echo "launch = false" > "$layers_dir"/golang.toml
+  echo "build = true" >> "$layers_dir"/golang.toml
+  echo "cache = true" >> "$layers_dir"/golang.toml
+  echo -e "[metadata]\n  version = \"$golang_version\"\n  url = \"$golang_url\"" >> "$layers_dir"/golang.toml
+fi
+
+export PATH=$layers_dir/golang/go/bin:$PATH
+
+ln -s $layers_dir/golang $HOME/go
+export GOPATH="$HOME/go"
+mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+go build
+
+go_binary=blah=${PWD##*/}
+
+echo "processes = [{ type = \"web\", command = \"$go_binary\"}]" > "$layers_dir/launch.toml"

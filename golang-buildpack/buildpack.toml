@@ -1,0 +1,7 @@
+[buildpack]
+id = "io.buildpacks.samples.golang"
+version = "0.0.1"
+name = "Sample Golang Buildpack"
+
+[[stacks]]
+id = "io.buildpacks.stacks.bionic"
