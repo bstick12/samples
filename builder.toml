@@ -8,8 +8,16 @@ id = "io.buildpacks.samples.java"
 uri = "./java-buildpack"
 latest = true
 
+[[buildpacks]]
+id = "io.buildpacks.samples.golang"
+uri = "./golang-buildpack"
+latest = true
+
 [[groups]]
 buildpacks = [ { id = "io.buildpacks.samples.nodejs", version = "latest" } ]
 
 [[groups]]
 buildpacks = [ { id = "io.buildpacks.samples.java", version = "latest" } ]
+
+[[groups]]
+buildpacks = [ { id = "io.buildpacks.samples.golang", version = "latest" } ]

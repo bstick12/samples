@@ -22,29 +22,29 @@ if compgen -G "$env_dir/*" > /dev/null; then
   done
 fi
 
-echo "---> Installing git"
-
-if [[ -f $layers_dir/git.toml ]]; then
-  cached_git_url=$(cat "$layers_dir/git.toml" | yj -t | jq -r .metadata.url 2>/dev/null || echo 'Golang TOML parsing failed')
-fi
-if [[ $git_url != $cache_git_url ]] ; then
-  rm -rf "$layers_dir/git"
-  mkdir -p "$layers_dir/git"
-  wget -qO git.tgz "$git_url";
-  tar -C "$layers_dir/git" -xzf git.tgz
-  pushd "${layers_dir}/git/git-${git_version}"
-    make configure
-    ./configure --prefix "${layers_dir}/git"
-    make all
-    make install
-  popd
-  rm git.tgz
-  ls -la $layers_dir/git
-  echo "launch = false" > "$layers_dir"/git.toml
-  echo "build = true" >> "$layers_dir"/git.toml
-  echo "cache = true" >> "$layers_dir"/git.toml
-  echo -e "[metadata]\n  version = \"$git_version\"\n  url = \"$git_url\"" >> "$layers_dir"/git.toml
-fi
+# echo "---> Installing git"
+#
+# if [[ -f $layers_dir/git.toml ]]; then
+#   cached_git_url=$(cat "$layers_dir/git.toml" | yj -t | jq -r .metadata.url 2>/dev/null || echo 'Golang TOML parsing failed')
+# fi
+# if [[ $git_url != $cache_git_url ]] ; then
+#   rm -rf "$layers_dir/git"
+#   mkdir -p "$layers_dir/git"
+#   wget -qO git.tgz "$git_url";
+#   tar -C "$layers_dir/git" -xzf git.tgz
+#   pushd "${layers_dir}/git/git-${git_version}"
+#     make configure
+#     ./configure --prefix "${layers_dir}/git"
+#     make all
+#     make install
+#   popd
+#   rm git.tgz
+#   ls -la $layers_dir/git
+#   echo "launch = false" > "$layers_dir"/git.toml
+#   echo "build = true" >> "$layers_dir"/git.toml
+#   echo "cache = true" >> "$layers_dir"/git.toml
+#   echo -e "[metadata]\n  version = \"$git_version\"\n  url = \"$git_url\"" >> "$layers_dir"/git.toml
+# fi
 
 export PATH=$layers_dir/git/git/bin:$PATH
 
@@ -68,13 +68,19 @@ if [[ $golang_url != $cache_golang_url ]] ; then
 fi
 
 export PATH=$layers_dir/golang/go/bin:$PATH
+export GOROOT=$layers_dir/golang/go
 
 ln -s $layers_dir/golang $HOME/go
 export GOPATH="$HOME/go"
 mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+ln -s "$PWD" "$GOPATH/src/$GOPACKAGENAME"
+
+env
+
+cd "$GOPATH/src/$GOPACKAGENAME"
 
 go build
 
-go_binary=blah=${PWD##*/}
+go_binary=${PWD##*/}
 
 echo "processes = [{ type = \"web\", command = \"$go_binary\"}]" > "$layers_dir/launch.toml"
